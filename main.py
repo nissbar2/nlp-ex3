@@ -120,20 +120,21 @@ class Transition:
         self.fitted = False
         self.pairs = None
         self.START = "START"
+        self.START_WORD = "__START__"
+        self.STOP = "STOP"
+        self.STOP_WORD = "__STOP__"
 
     def fit(self, dataset):
         self.pairs = defaultdict(list)
-        # for t1, t2 in self._token_gen(dataset):
-        #    self.pairs[t1].append(t2)
         tags = [
-            [self.START] + list(map(operator.itemgetter(1), sentence))
+            [self.START] + list(map(operator.itemgetter(1), sentence)) + [self.STOP]
             for sentence in dataset
         ]
-        # tags = list(map(operator.itemgetter(1), augmented_data))
 
         flat = list(chain.from_iterable(dataset))
         self.all_tags = set(map(operator.itemgetter(1), flat))
-        self.all_tags.add("START")
+        self.all_tags.add(self.START)
+        self.all_tags.add(self.STOP)
 
         for tags_seq in tags:
             for t1, t2 in pairwise(tags_seq):
@@ -153,10 +154,6 @@ class Transition:
         c = Counter(self.pairs[previous])
         return c[tag] / len(self.pairs[previous]) if self.pairs[previous] else 0
 
-    def _token_gen(self, data):
-        augmented_data = [[("IGNORED", self.START)] + sentence for sentence in data]
-        yield from pairwise(map(operator.itemgetter(1), augmented_data))
-
 
 class HMM:
     def __init__(self):
@@ -174,7 +171,7 @@ class HMM:
         :param sentence:
         :return:
         """
-        table = list()  # type of list[dict[tag, tuple[float, backpointer]]]
+        table = list()  # type of list[dict[tag, tuple[probability, back-pointer]]]
         table.append(defaultdict(lambda: (1, None)))  # pi(0, *) = 1, bp(0, *) = None
         S_0 = [self.transmission.START]
         S = self.emission.tags_counter.keys()
@@ -203,8 +200,8 @@ class HMM:
         max_bp = None
         seq = []
         for tag in S:
-            prob, bp = table[len(sentence) - 1][tag]
-            prob = prob * self.transmission.prob(".", previous=tag)
+            prob, bp = table[-1][tag]
+            prob = prob * self.transmission.prob(self.transmission.STOP, previous=tag)
             if prob > max_prob:
                 max_prob = prob
                 max_bp = tag
@@ -214,9 +211,9 @@ class HMM:
             seq.append(bp)
             if bp is None:
                 print()
-            _, bp = table[k - 1][bp]
+            _, bp = table[k][bp]
 
-        result = list(reversed(seq))[1:] + ["."]
+        result = list(reversed(seq))[1:]
         return result
 
 
@@ -245,7 +242,7 @@ if __name__ == "__main__":
     # hmm.predict(test[16])
 
     for i, sentence in enumerate(test):
-        # print(f"sentence {i}")
+        print(f"sentence {i}")
         sen = list(map(operator.itemgetter(0), sentence))
         sen_tags = list(map(operator.itemgetter(1), sentence))
         hmm_predictions.extend(list(zip(hmm.predict(sen), sen_tags)))
