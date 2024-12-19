@@ -3,14 +3,15 @@
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 import nltk
+
 nltk.download("brown")
 
-from nltk.corpus import brown
-
-import operator
 import math
-from itertools import chain
+import operator
 from collections import Counter, defaultdict
+from itertools import chain
+
+from nltk.corpus import brown
 
 
 def pairwise(data):
@@ -26,7 +27,7 @@ def preprocess(sentences):
 
     for s in sentences:
         processed_sentence = []
-        for (word, tag) in s:
+        for word, tag in s:
             if "-" in tag:
                 tag = tag.split("-")[0]
             elif "+" in tag:
@@ -89,8 +90,12 @@ def error_rate(predictions):
 
 def compute_errors(baseline, predictions):
     total = error_rate(predictions)
-    known_words_error = error_rate(list(filter(lambda x: x[0] in baseline.unique_words, predictions)))
-    unknown_words_error = error_rate(list(filter(lambda x: x[0] not in baseline.unique_words, predictions)))
+    known_words_error = error_rate(
+        list(filter(lambda x: x[0] in baseline.unique_words, predictions))
+    )
+    unknown_words_error = error_rate(
+        list(filter(lambda x: x[0] not in baseline.unique_words, predictions))
+    )
     return total, known_words_error, unknown_words_error
 
 
@@ -106,7 +111,7 @@ class Emission:
 
     def prob(self, word, tag):
         if word not in self.unique_word:
-            return 1/self.tags_counter["NN"]
+            return 1 / self.tags_counter["NN"]
         return self.conditional_counter[(word, tag)] / self.tags_counter[tag]
 
 
@@ -120,8 +125,11 @@ class Transition:
         self.pairs = defaultdict(list)
         # for t1, t2 in self._token_gen(dataset):
         #    self.pairs[t1].append(t2)
-        tags = [[self.START] + list(map(operator.itemgetter(1), sentence)) for sentence in dataset]
-        #tags = list(map(operator.itemgetter(1), augmented_data))
+        tags = [
+            [self.START] + list(map(operator.itemgetter(1), sentence))
+            for sentence in dataset
+        ]
+        # tags = list(map(operator.itemgetter(1), augmented_data))
 
         flat = list(chain.from_iterable(dataset))
         self.all_tags = set(map(operator.itemgetter(1), flat))
@@ -179,7 +187,11 @@ class HMM:
                 max_prob = -math.inf
                 bp = None
                 for prev in S_k_1:
-                    prob = table[k - 1][prev][0] * self.transmission.prob(tag=current, previous=prev) * self.emission.prob(sentence[k - 1], current)
+                    prob = (
+                        table[k - 1][prev][0]
+                        * self.transmission.prob(tag=current, previous=prev)
+                        * self.emission.prob(sentence[k - 1], current)
+                    )
                     if prob > max_prob:
                         max_prob = prob
                         bp = prev
@@ -192,7 +204,7 @@ class HMM:
         seq = []
         for tag in S:
             prob, bp = table[len(sentence) - 1][tag]
-            prob = prob * self.transmission.prob('.', previous=tag)
+            prob = prob * self.transmission.prob(".", previous=tag)
             if prob > max_prob:
                 max_prob = prob
                 max_bp = tag
@@ -209,16 +221,18 @@ class HMM:
 
 
 # Press the green button in the gutter to run the script.
-if __name__ == '__main__':
+if __name__ == "__main__":
     train, test = download_dataset()
     baseline = Baseline()
     baseline.fit(train)
 
     predictions = []
-    for (word, true_tag) in chain.from_iterable(test):
+    for word, true_tag in chain.from_iterable(test):
         predictions.append((baseline.predict(word), true_tag))
 
-    total_error, known_words_error, unknown_words_error = compute_errors(baseline, predictions)
+    total_error, known_words_error, unknown_words_error = compute_errors(
+        baseline, predictions
+    )
     print("Task B:")
     print(f"\ttotal error rate is: {total_error}")
     print(f"\tknown words error rate is: {known_words_error}")
@@ -236,12 +250,13 @@ if __name__ == '__main__':
         sen_tags = list(map(operator.itemgetter(1), sentence))
         hmm_predictions.extend(list(zip(hmm.predict(sen), sen_tags)))
 
-    total_error, known_words_error, unknown_words_error = compute_errors(baseline, hmm_predictions)
+    total_error, known_words_error, unknown_words_error = compute_errors(
+        baseline, hmm_predictions
+    )
     print("Task C:")
     print(f"\ttotal error rate is: {total_error}")
     print(f"\tknown words error rate is: {known_words_error}")
     print(f"\tunknown words error rate is: {unknown_words_error}")
-
 
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
